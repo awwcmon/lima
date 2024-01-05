@@ -1,0 +1,180 @@
+# Deploy kubernetes via kubeadm.
+# $ limactl start ./k8s.yaml
+# $ limactl shell k8s sudo kubectl
+
+# It can be accessed from the host by exporting the kubeconfig file;
+# the ports are already forwarded automatically by lima:
+#
+# $ export KUBECONFIG=$(limactl list k8s --format 'unix://{{.Dir}}/copied-from-guest/kubeconfig.yaml')
+# $ kubectl get no
+# NAME       STATUS   ROLES                  AGE   VERSION
+# lima-k8s   Ready    control-plane,master   44s   v1.22.3
+
+# This template requires Lima v0.7.0 or later.
+vmType: 'vz'
+images:
+  # Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
+  - location: 'https://download.fedoraproject.org/pub/fedora/linux/releases/39/Cloud/aarch64/images/Fedora-Cloud-Base-39-1.5.aarch64.qcow2'
+    arch: 'aarch64'
+    digest: 'sha256:765996d5b77481ca02d0ac06405641bf134ac920cfc1e60d981c64d7971162dc'
+# Mounts are disabled in this template, but can be enabled optionally.
+containerd:
+  system: true
+  user: true
+
+mounts:
+  - location: '~'
+#    writable: true
+mountType: 'virtiofs'
+networks:
+  - vzNAT: true
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      command -v kubeadm >/dev/null 2>&1 && exit 0
+      cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+      overlay
+      br_netfilter
+      EOF
+
+      sudo modprobe overlay
+      sudo modprobe br_netfilter
+
+      # sysctl params required by setup, params persist across reboots
+      cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+      net.bridge.bridge-nf-call-iptables  = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward                 = 1
+      EOF
+
+      # Apply sysctl params without reboot
+      sudo sysctl --system
+
+      # Installing kubeadm, kubelet and kubectl
+      setenforce 0
+      sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+
+      cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+      [kubernetes]
+      name=Kubernetes
+      baseurl=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/repodata/repomd.xml.key
+      exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
+      EOF
+
+      yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+      systemctl enable --now kubelet
+
+      dnf remove  -y zram-generator-defaults
+      swapoff -a
+      dnf install -y cri-tools
+      dnf install -y kubernetes-cni
+      dnf install -y nfs-utils
+  # See <https://kubernetes.io/docs/setup/production-environment/container-runtimes/>
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      grep SystemdCgroup /etc/containerd/config.toml && exit 0
+      grep "version = 2" /etc/containerd/config.toml || exit 1
+      # Configuring the systemd cgroup driver
+      # Overriding the sandbox (pause) image
+      cat <<EOF >>/etc/containerd/config.toml
+        [plugins]
+          [plugins."io.containerd.grpc.v1.cri"]
+            sandbox_image = "$(kubeadm config images list | grep pause | sort -r | head -n1)"
+            [plugins."io.containerd.grpc.v1.cri".containerd]
+              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
+                [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+                  runtime_type = "io.containerd.runc.v2"
+                  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+                    SystemdCgroup = true
+      EOF
+
+      systemctl restart containerd
+      \cp /usr/local/libexec/cni/* /opt/cni/bin/
+  # See <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/>
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      test -e /etc/kubernetes/admin.conf && exit 0
+      export KUBECONFIG=/etc/kubernetes/admin.conf
+      kubeadm config images list
+      kubeadm config images pull --cri-socket=unix:///run/containerd/containerd.sock
+      # Initializing your control-plane node
+      cat <<EOF >kubeadm-config.yaml
+      kind: InitConfiguration
+      apiVersion: kubeadm.k8s.io/v1beta3
+      nodeRegistration:
+        criSocket: unix:///run/containerd/containerd.sock
+      ---
+      kind: ClusterConfiguration
+      apiVersion: kubeadm.k8s.io/v1beta3
+      apiServer:
+        certSANs: # --apiserver-cert-extra-sans
+        - "127.0.0.1"
+      networking:
+        podSubnet: "10.244.0.0/16" # --pod-network-cidr
+      ---
+      kind: KubeletConfiguration
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      cgroupDriver: systemd
+      EOF
+
+      kubeadm init --config kubeadm-config.yaml
+      # Installing a Pod network add-on
+      kubectl apply -f https://github.com/flannel-io/flannel/releases/download/v0.22.1/kube-flannel.yml
+      # Control plane node isolation
+      kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+      # Replace the server address with localhost, so that it works also from the host
+      sed -e "/server:/ s|https://.*:\([0-9]*\)$|https://127.0.0.1:\1|" -i $KUBECONFIG
+      mkdir -p ${HOME:-/root}/.kube && cp -f $KUBECONFIG ${HOME:-/root}/.kube/config
+probes:
+  - description: 'kubeadm to be installed'
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 30s bash -c "until command -v kubeadm >/dev/null 2>&1; do sleep 3; done"; then
+        echo >&2 "kubeadm is not installed yet"
+        exit 1
+      fi
+    hint: |
+      See "/var/log/cloud-init-output.log". in the guest
+  - description: 'kubeadm to be completed'
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 300s bash -c "until test -f /etc/kubernetes/admin.conf; do sleep 3; done"; then
+        echo >&2 "k8s is not running yet"
+        exit 1
+      fi
+    hint: |
+      The k8s kubeconfig file has not yet been created.
+  - description: 'kubernetes cluster to be running'
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 300s bash -c "until sudo kubectl version >/dev/null 2>&1; do sleep 3; done"; then
+        echo >&2 "kubernetes cluster is not up and running yet"
+        exit 1
+      fi
+  - description: 'coredns deployment to be running'
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      sudo kubectl wait -n kube-system --timeout=180s --for=condition=available deploy coredns
+copyToHost:
+  - guest: '/etc/kubernetes/admin.conf'
+    host: '{{.Dir}}/copied-from-guest/kubeconfig.yaml'
+    deleteOnStop: true
+message: |
+  To run `kubectl` on the host (assumes kubectl is installed), run the following commands:
+  ------
+  export KUBECONFIG="{{.Dir}}/copied-from-guest/kubeconfig.yaml"
+  kubectl ...
+  ------
