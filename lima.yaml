@@ -11,24 +11,34 @@
 # lima-k8s   Ready    control-plane,master   44s   v1.22.3
 
 # This template requires Lima v0.7.0 or later.
-vmType: 'vz'
+vmType: "vz"
 images:
   # Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
-  - location: 'https://download.fedoraproject.org/pub/fedora/linux/releases/39/Cloud/aarch64/images/Fedora-Cloud-Base-39-1.5.aarch64.qcow2'
-    arch: 'aarch64'
-    digest: 'sha256:765996d5b77481ca02d0ac06405641bf134ac920cfc1e60d981c64d7971162dc'
+  - location: "~/Downloads/redhat.qcow2"
+    arch: "aarch64"
+    digest: "sha256:fae5bb27026124744795c304eb380388386ab13b1e1e4debe6848c073c96eb89"
 # Mounts are disabled in this template, but can be enabled optionally.
 containerd:
   system: true
   user: true
-
 mounts:
-  - location: '~'
+  - location: "~"
 #    writable: true
-mountType: 'virtiofs'
+mountType: "virtiofs"
 networks:
   - vzNAT: true
 provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      dnf -y install dnf-plugins-core
+      dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+      dnf update
+      dnf install -y docker-ce
+      system enable docker --now
+      chmod 666 /var/run/docker.sock
+
   - mode: system
     script: |
       #!/bin/bash
@@ -134,8 +144,20 @@ provision:
       # Replace the server address with localhost, so that it works also from the host
       sed -e "/server:/ s|https://.*:\([0-9]*\)$|https://127.0.0.1:\1|" -i $KUBECONFIG
       mkdir -p ${HOME:-/root}/.kube && cp -f $KUBECONFIG ${HOME:-/root}/.kube/config
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      chmod 666 /var/run/docker.sock
 probes:
-  - description: 'kubeadm to be installed'
+  - description: "wait docker to be available"
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      command -v docker >/dev/null 2>&1 && exit 0
+      command -v dockerd >/dev/null 2>&1 && exit 0
+
+  - description: "kubeadm to be installed"
     script: |
       #!/bin/bash
       set -eux -o pipefail
@@ -145,7 +167,7 @@ probes:
       fi
     hint: |
       See "/var/log/cloud-init-output.log". in the guest
-  - description: 'kubeadm to be completed'
+  - description: "kubeadm to be completed"
     script: |
       #!/bin/bash
       set -eux -o pipefail
@@ -155,7 +177,7 @@ probes:
       fi
     hint: |
       The k8s kubeconfig file has not yet been created.
-  - description: 'kubernetes cluster to be running'
+  - description: "kubernetes cluster to be running"
     script: |
       #!/bin/bash
       set -eux -o pipefail
@@ -163,14 +185,17 @@ probes:
         echo >&2 "kubernetes cluster is not up and running yet"
         exit 1
       fi
-  - description: 'coredns deployment to be running'
+  - description: "coredns deployment to be running"
     script: |
       #!/bin/bash
       set -eux -o pipefail
       sudo kubectl wait -n kube-system --timeout=180s --for=condition=available deploy coredns
+portForwards:
+  - guestSocket: "/var/run/docker.sock"
+    hostSocket: "{{.Dir}}/sock/docker.sock"
 copyToHost:
-  - guest: '/etc/kubernetes/admin.conf'
-    host: '{{.Dir}}/copied-from-guest/kubeconfig.yaml'
+  - guest: "/etc/kubernetes/admin.conf"
+    host: "{{.Dir}}/copied-from-guest/kubeconfig.yaml"
     deleteOnStop: true
 message: |
   To run `kubectl` on the host (assumes kubectl is installed), run the following commands:
