@@ -31,30 +31,31 @@ provision:
     script: |
       #!/bin/bash
       set -eux -o pipefail
-      command -v kubeadm >/dev/null 2>&1 && exit 0
-      command -v nerdctl &> /dev/null || echo 'export PATH=$PATH:/usr/local/bin' >> /etc/profile
-      cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+      command -v kubeadm &>/dev/null && exit 0
+      command -v kubectl &>/dev/null || echo 'export PATH=$PATH:/usr/local/bin' >>/etc/profile
+      grep KUBECONFIG /etc/profile || echo 'export KUBECONFIG=/etc/kubernetes/admin.conf' >>/etc/profile
+      cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
       overlay
       br_netfilter
       EOF
 
-      sudo modprobe overlay
-      sudo modprobe br_netfilter
+      modprobe overlay
+      modprobe br_netfilter
 
-      # sysctl params required by setup, params persist across reboots
-      cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+      cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-cri.conf
       net.bridge.bridge-nf-call-iptables  = 1
-      net.bridge.bridge-nf-call-ip6tables = 1
       net.ipv4.ip_forward                 = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
       EOF
 
-      # Apply sysctl params without reboot
-      sudo sysctl --system
+      sysctl --system
 
-      # Installing kubeadm, kubelet and kubectl
       setenforce 0
       sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+      swapoff -a
+      sed -i '/swap/d' /etc/fstab
 
+      # Installing kubeadm, kubelet and kubectl
       cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
       [kubernetes]
       name=Kubernetes
@@ -65,37 +66,24 @@ provision:
       exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
       EOF
 
-      yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+      yum update -y
+      yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes cri-tools kubernetes-cni nfs-utils ipvsadm net-tools vim
       systemctl enable --now kubelet
 
-      dnf remove  -y zram-generator-defaults
-      swapoff -a
-      dnf install -y cri-tools
-      dnf install -y kubernetes-cni
-      dnf install -y nfs-utils
+
   # See <https://kubernetes.io/docs/setup/production-environment/container-runtimes/>
   - mode: system
     script: |
       #!/bin/bash
-      set -eux -o pipefail
-      grep SystemdCgroup /etc/containerd/config.toml && exit 0
-      grep "version = 2" /etc/containerd/config.toml || exit 1
-      # Configuring the systemd cgroup driver
-      # Overriding the sandbox (pause) image
-      cat <<EOF >>/etc/containerd/config.toml
-        [plugins]
-          [plugins."io.containerd.grpc.v1.cri"]
-            sandbox_image = "$(kubeadm config images list | grep pause | sort -r | head -n1)"
-            [plugins."io.containerd.grpc.v1.cri".containerd]
-              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
-                [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-                  runtime_type = "io.containerd.runc.v2"
-                  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-                    SystemdCgroup = true
+      mkdir -p /etc/systemd/system/containerd.service.d/
+      cat <<EOF >/etc/systemd/system/containerd.service.d/proxy.conf
+      [Service]
+      Environment="HTTP_PROXY=http://10.0.1.1:7890"
+      Environment="HTTPS_PROXY=http://10.0.1.1:7890"
+      Environment="NO_PROXY=localhost,127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local,<nodeCIDR>,<APIServerInternalURL>,<serviceNetworkCIDRs>,<etcdDiscoveryDomain>,<clusterNetworkCIDRs>,<platformSpecific>,<REST_OF_CUSTOM_EXCEPTIONS>"
       EOF
+      systemctl daemon-reload && systemctl enable --now containerd
 
-      systemctl restart containerd
-      \cp /usr/local/libexec/cni/* /opt/cni/bin/
   # See <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/>
   - mode: system
     script: |
@@ -103,34 +91,10 @@ provision:
       set -eux -o pipefail
       test -e /etc/kubernetes/admin.conf && exit 0
       export KUBECONFIG=/etc/kubernetes/admin.conf
-      kubeadm config images list
-      kubeadm config images pull --cri-socket=unix:///run/containerd/containerd.sock
-      # Initializing your control-plane node
-      cat <<EOF >kubeadm-config.yaml
-      kind: InitConfiguration
-      apiVersion: kubeadm.k8s.io/v1beta3
-      nodeRegistration:
-        criSocket: unix:///run/containerd/containerd.sock
-      ---
-      kind: ClusterConfiguration
-      apiVersion: kubeadm.k8s.io/v1beta3
-      apiServer:
-        certSANs: # --apiserver-cert-extra-sans
-        - "127.0.0.1"
-      networking:
-        podSubnet: "10.244.0.0/16" # --pod-network-cidr
-      ---
-      kind: KubeletConfiguration
-      apiVersion: kubelet.config.k8s.io/v1beta1
-      cgroupDriver: systemd
-      EOF
-
-      kubeadm init --config kubeadm-config.yaml
-      # Installing a Pod network add-on
-      kubectl apply -f https://github.com/flannel-io/flannel/releases/download/v0.22.1/kube-flannel.yml
-      # Control plane node isolation
+      kubeadm config images pull
+      kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-cert-extra-sans=127.0.0.1
+      kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
       kubectl taint nodes --all node-role.kubernetes.io/control-plane-
-      # Replace the server address with localhost, so that it works also from the host
       sed -e "/server:/ s|https://.*:\([0-9]*\)$|https://127.0.0.1:\1|" -i $KUBECONFIG
       mkdir -p ${HOME:-/root}/.kube && cp -f $KUBECONFIG ${HOME:-/root}/.kube/config
 probes:
