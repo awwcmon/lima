@@ -143,6 +143,15 @@ provision:
       mkdir -p {{.Home}}/.kube
       cp -f $KUBECONFIG {{.Home}}/.kube/config
       chown -R {{.User}} {{.Home}}/.kube
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      command -v dockerd &>/dev/null && exit 0
+      yum install -y yum-utils
+      yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+      yum install -y docker-ce
+
 probes:
   - description: "kubeadm to be installed"
     script: |
@@ -170,6 +179,14 @@ probes:
       set -eux -o pipefail
       if ! timeout 300s bash -c "until sudo kubectl version >/dev/null 2>&1; do sleep 3; done"; then
         echo >&2 "kubernetes cluster is not up and running yet"
+        exit 1
+      fi
+  - description: "docker daemon to be running"
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 300s bash -c "until sudo docker ps >/dev/null 2>&1; do sleep 3; done"; then
+        echo >&2 "docker daemon is not running yet"
         exit 1
       fi
   - description: "coredns deployment to be running"
