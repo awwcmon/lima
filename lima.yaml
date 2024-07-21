@@ -134,6 +134,10 @@ provision:
       kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
       # Control plane node isolation
       kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+      grep -q '3000-32767' /etc/kubernetes/manifests/kube-apiserver.yaml \
+      || sed -i '/    - --service-cluster-ip-range.*/a\    - --service-node-port-range=3000-32767' \
+      /etc/kubernetes/manifests/kube-apiserver.yaml
+      systemctl daemon-reload && systemctl restart kubelet containerd
       # Replace the server address with localhost, so that it works also from the host
       sed -e "/server:/ s|https://.*:\([0-9]*\)$|https://127.0.0.1:\1|" -i $KUBECONFIG
       mkdir -p ${HOME:-/root}/.kube && cp -f $KUBECONFIG ${HOME:-/root}/.kube/config
