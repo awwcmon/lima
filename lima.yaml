@@ -198,9 +198,21 @@ copyToHost:
   - guest: "/etc/kubernetes/admin.conf"
     host: "{{.Dir}}/copied-from-guest/kubeconfig.yaml"
     deleteOnStop: true
+hostResolver:
+  hosts:
+    host.docker.internal: host.lima.internal
+portForwards:
+- guestSocket: "/run/user/{{.UID}}/docker.sock"
+  hostSocket: "{{.Dir}}/sock/docker.sock"
 message: |
   To run `kubectl` on the host (assumes kubectl is installed), run the following commands:
   ------
   export KUBECONFIG="{{.Dir}}/copied-from-guest/kubeconfig.yaml"
   kubectl ...
   ------
+  To run `docker` on the host (assumes docker-cli is installed), run the following commands:
+   ------
+   docker context create lima-{{.Name}} --docker "host=unix://{{.Dir}}/sock/docker.sock"
+   docker context use lima-{{.Name}}
+   docker run hello-world
+   ------
