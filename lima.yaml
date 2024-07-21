@@ -151,6 +151,7 @@ provision:
       yum install -y yum-utils
       yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
       yum install -y docker-ce
+      systemctl enable --now docker
 
 probes:
   - description: "kubeadm to be installed"
