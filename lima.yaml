@@ -13,7 +13,7 @@
 # This template requires Lima v0.7.0 or later.
 vmType: "vz"
 images:
-  - location: "~/.lima/redhat.qcow2"
+  - location: "https://xiaoyueyue.eu.org/redhat.qcow2"
     arch: "aarch64"
     digest: "sha256:b85d5f5c9e1cbc70cb96f5e5a3f05416555edd7b6c46dba978c71f70eade802b"
 # Mounts are disabled in this template, but can be enabled optionally.
