@@ -69,7 +69,8 @@ provision:
       EOF
 
       yum update -y
-      yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes cri-tools kubernetes-cni nfs-utils ipvsadm net-tools vim
+      yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes \
+      cri-tools kubernetes-cni nfs-utils ipvsadm net-tools vim telnet
       systemctl enable --now kubelet
 
   # See <https://kubernetes.io/docs/setup/production-environment/container-runtimes/>
@@ -95,9 +96,11 @@ provision:
       mkdir -p /etc/systemd/system/containerd.service.d/
       cat <<EOF >/etc/systemd/system/containerd.service.d/proxy.conf
       [Service]
-      Environment="HTTP_PROXY=http://10.0.1.1:7890"
-      Environment="HTTPS_PROXY=http://10.0.1.1:7890"
-      Environment="NO_PROXY=localhost,127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local,<nodeCIDR>,<APIServerInternalURL>,<serviceNetworkCIDRs>,<etcdDiscoveryDomain>,<clusterNetworkCIDRs>,<platformSpecific>,<REST_OF_CUSTOM_EXCEPTIONS>"
+      Environment="HTTP_PROXY=http://192.168.5.2:7890"
+      Environment="HTTPS_PROXY=http://192.168.5.2:7890"
+      Environment="NO_PROXY=localhost,127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,\
+      .svc,.cluster.local,<nodeCIDR>,<APIServerInternalURL>,<serviceNetworkCIDRs>,\
+      <etcdDiscoveryDomain>,<clusterNetworkCIDRs>,<platformSpecific>,<REST_OF_CUSTOM_EXCEPTIONS>"
       EOF
       systemctl daemon-reload && systemctl restart containerd
 
@@ -192,7 +195,8 @@ probes:
     script: |
       #!/bin/bash
       set -eux -o pipefail
-      if ! timeout 300s bash -c "until sudo docker ps &>/dev/null && sudo chmod 666 /var/run/docker.sock; do sleep 3; done"; then
+      if ! timeout 300s bash -c "until sudo docker ps &>/dev/null && sudo chmod 666 /var/run/docker.sock; \
+      do sleep 3; done"; then
         echo >&2 "docker daemon is not running yet"
         exit 1
       fi
@@ -219,8 +223,8 @@ message: |
   kubectl ...
   ------
   To run `docker` on the host (assumes docker-cli is installed), run the following commands:
-   ------
-   docker context create lima-{{.Name}} --docker "host=unix://{{.Dir}}/sock/docker.sock"
-   docker context use lima-{{.Name}}
-   docker run hello-world
-   ------
+  ------
+  docker context create lima-{{.Name}} --docker "host=unix://{{.Dir}}/sock/docker.sock"
+  docker context use lima-{{.Name}}
+  docker run hello-world
+  ------
