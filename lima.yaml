@@ -70,11 +70,11 @@ provision:
       yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes cri-tools kubernetes-cni nfs-utils ipvsadm net-tools vim
       systemctl enable --now kubelet
 
-
   # See <https://kubernetes.io/docs/setup/production-environment/container-runtimes/>
   - mode: system
     script: |
       #!/bin/bash
+      set -eux -o pipefail
       grep SystemdCgroup /etc/containerd/config.toml && exit 0
       grep "version = 2" /etc/containerd/config.toml || exit 1
       # Configuring the systemd cgroup driver
@@ -135,6 +135,14 @@ provision:
       # Replace the server address with localhost, so that it works also from the host
       sed -e "/server:/ s|https://.*:\([0-9]*\)$|https://127.0.0.1:\1|" -i $KUBECONFIG
       mkdir -p ${HOME:-/root}/.kube && cp -f $KUBECONFIG ${HOME:-/root}/.kube/config
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      export KUBECONFIG=/etc/kubernetes/admin.conf
+      mkdir -p {{.Home}}/.kube
+      cp -f $KUBECONFIG {{.Home}}/.kube/config
+      chown -R {{.User}} {{.Home}}/.kube
 probes:
   - description: "kubeadm to be installed"
     script: |
