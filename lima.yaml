@@ -192,7 +192,7 @@ probes:
     script: |
       #!/bin/bash
       set -eux -o pipefail
-      if ! timeout 300s bash -c "until sudo docker ps &>/dev/null && chmod 666 /var/run/docker.sock; do sleep 3; done"; then
+      if ! timeout 300s bash -c "until sudo docker ps &>/dev/null && sudo chmod 666 /var/run/docker.sock; do sleep 3; done"; then
         echo >&2 "docker daemon is not running yet"
         exit 1
       fi
