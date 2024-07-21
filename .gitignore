@@ -1,0 +1,13 @@
+account/*.json
+venv
+.DS_Store
+.idea
+*/
+redhat.qcow2
+_config/
+.github/
+_networks/
+
+*.local
+logs/*.log
+__pycache__
