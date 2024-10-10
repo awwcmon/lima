@@ -19,7 +19,7 @@ images:
 # Mounts are disabled in this template, but can be enabled optionally.
 
 cpus: 4
-memory: 4G
+memory: 6G
 containerd:
   system: true
   user: false
