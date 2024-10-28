@@ -13,6 +13,9 @@
 # This template requires Lima v0.7.0 or later.
 vmType: "vz"
 images:
+  - location: "https://xiaoyueyue.eu.org/redhat.qcow2"
+    arch: "aarch64"
+    digest: "sha256:b85d5f5c9e1cbc70cb96f5e5a3f05416555edd7b6c46dba978c71f70eade802b"
   - location: "https://dl.rockylinux.org/pub/rocky/9.4/images/x86_64/Rocky-9-GenericCloud-Base-9.4-20240609.1.x86_64.qcow2"
     arch: "x86_64"
     digest: "sha256:2179864f4fa9799f11c0824c439666c2451d6751450494e20034efd4f3fa0559"
@@ -26,9 +29,6 @@ images:
     arch: "x86_64"
   - location: "https://dl.rockylinux.org/pub/rocky/9/images/aarch64/Rocky-9-GenericCloud.latest.aarch64.qcow2"
     arch: "aarch64"
-  - location: "https://xiaoyueyue.eu.org/redhat.qcow2"
-    arch: "aarch64"
-    digest: "sha256:b85d5f5c9e1cbc70cb96f5e5a3f05416555edd7b6c46dba978c71f70eade802b"
 # Mounts are disabled in this template, but can be enabled optionally.
 
 cpus: 4
