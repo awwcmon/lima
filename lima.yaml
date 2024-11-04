@@ -13,6 +13,9 @@
 # This template requires Lima v0.7.0 or later.
 vmType: "vz"
 images:
+  - location: "https://download.fedoraproject.org/pub/fedora/linux/releases/41/Cloud/aarch64/images/Fedora-Cloud-Base-Generic-41-1.4.aarch64.qcow2"
+    arch: "aarch64"
+    digest: "sha256:085883b42c7e3b980e366a1fe006cd0ff15877f7e6e984426f3c6c67c7cc2faa"
   - location: "https://dl.rockylinux.org/pub/rocky/9.4/images/aarch64/Rocky-9-GenericCloud-Base-9.4-20240609.0.aarch64.qcow2"
     arch: "aarch64"
     digest: "sha256:ad9dd95066212faaee19da392888ccb0db0b444141ba50cc44440558b9ee6f88"
@@ -57,10 +60,6 @@ provision:
 
       sysctl --system
 
-      setenforce 0
-      sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
-      swapoff -a
-      sed -i '/swap/d' /etc/fstab
       version=$(curl -L -s https://dl.k8s.io/release/stable.txt|cut -c 1-5)
       # Installing kubeadm, kubelet and kubectl
       cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
@@ -73,9 +72,17 @@ provision:
       exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
       EOF
 
+      setenforce 0
+      sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+      swapoff -a
+      sed -i '/swap/d' /etc/fstab
+      source /etc/os-release
+      if [[ $ID == "fedora" ]];then
+      dnf remove -y zram-generator-defaults
+      fi
+
       yum update -y
-      yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes \
-      cri-tools kubernetes-cni nfs-utils ipvsadm net-tools vim telnet
+      yum install -y kubelet kubeadm kubectl cri-tools kubernetes-cni nfs-utils ipvsadm net-tools vim telnet
       systemctl enable --now kubelet
 
   # See <https://kubernetes.io/docs/setup/production-environment/container-runtimes/>
@@ -163,7 +170,8 @@ provision:
       set -eux -o pipefail
       command -v dockerd &>/dev/null && exit 0
       yum install -y yum-utils
-      yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+      source /etc/os-release
+      yum-config-manager --add-repo https://download.docker.com/linux/$ID/docker-ce.repo
       yum install -y docker-ce
       systemctl enable --now docker
 
