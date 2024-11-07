@@ -13,12 +13,12 @@
 # This template requires Lima v0.7.0 or later.
 vmType: "vz"
 images:
+  - location: "https://dl.rockylinux.org/pub/rocky/9/images/aarch64/Rocky-9-GenericCloud.latest.aarch64.qcow2"
+    arch: "aarch64"
+
   - location: "https://download.fedoraproject.org/pub/fedora/linux/releases/41/Cloud/aarch64/images/Fedora-Cloud-Base-Generic-41-1.4.aarch64.qcow2"
     arch: "aarch64"
     digest: "sha256:085883b42c7e3b980e366a1fe006cd0ff15877f7e6e984426f3c6c67c7cc2faa"
-
-  - location: "https://dl.rockylinux.org/pub/rocky/9/images/aarch64/Rocky-9-GenericCloud.latest.aarch64.qcow2"
-    arch: "aarch64"
 
   - location: "https://xiaoyueyue.eu.org/redhat.qcow2"
     arch: "aarch64"
