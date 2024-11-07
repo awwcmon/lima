@@ -72,7 +72,7 @@ provision:
       sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
       swapoff -a
       sed -i '/swap/d' /etc/fstab
-      dnf upgrade -y
+      dnf update -y
       source /etc/os-release
       if [[ $ID == "fedora" ]];then
       dnf remove -y zram-generator-defaults
