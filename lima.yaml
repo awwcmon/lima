@@ -171,10 +171,10 @@ provision:
   - mode: system
     script: |
       #!/bin/bash
-      set -eux -o pipefail
       command -v dockerd &>/dev/null && exit 0
       yum install -y yum-utils
       source /etc/os-release
+      [[ $ID == "rocky" ]] && ID="rhel"
       yum-config-manager --add-repo https://download.docker.com/linux/$ID/docker-ce.repo
       yum install -y docker-ce
       systemctl enable --now docker
