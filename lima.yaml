@@ -13,20 +13,17 @@
 # This template requires Lima v0.7.0 or later.
 vmType: "vz"
 images:
+  - location: "https://dl.rockylinux.org/pub/rocky/9/images/aarch64/Rocky-9-GenericCloud.latest.aarch64.qcow2"
+    arch: "aarch64"
+
   - location: "https://download.fedoraproject.org/pub/fedora/linux/releases/41/Cloud/aarch64/images/Fedora-Cloud-Base-Generic-41-1.4.aarch64.qcow2"
     arch: "aarch64"
     digest: "sha256:085883b42c7e3b980e366a1fe006cd0ff15877f7e6e984426f3c6c67c7cc2faa"
-
-  - location: "https://dl.rockylinux.org/pub/rocky/9.4/images/aarch64/Rocky-9-GenericCloud-Base-9.4-20240609.0.aarch64.qcow2"
-    arch: "aarch64"
-    digest: "sha256:ad9dd95066212faaee19da392888ccb0db0b444141ba50cc44440558b9ee6f88"
 
   - location: "https://xiaoyueyue.eu.org/redhat.qcow2"
     arch: "aarch64"
     digest: "sha256:b85d5f5c9e1cbc70cb96f5e5a3f05416555edd7b6c46dba978c71f70eade802b"
 
-  - location: "https://dl.rockylinux.org/pub/rocky/9/images/aarch64/Rocky-9-GenericCloud.latest.aarch64.qcow2"
-    arch: "aarch64"
 # Mounts are disabled in this template, but can be enabled optionally.
 
 cpus: 4
