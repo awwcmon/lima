@@ -79,10 +79,10 @@ provision:
       source /etc/os-release
       if [[ $ID == "fedora" ]];then
       dnf remove -y zram-generator-defaults
-      fi
-
-      yum update -y
       yum install -y kubelet kubeadm kubectl cri-tools kubernetes-cni nfs-utils ipvsadm net-tools vim telnet
+      else
+      yum install -y kubelet kubeadm kubectl cri-tools kubernetes-cni nfs-utils ipvsadm net-tools vim telnet --disableexcludes=kubernetes
+      fi
       systemctl enable --now kubelet
 
   # See <https://kubernetes.io/docs/setup/production-environment/container-runtimes/>
