@@ -111,7 +111,7 @@ provision:
       .svc,.cluster.local,<nodeCIDR>,<APIServerInternalURL>,<serviceNetworkCIDRs>,\
       <etcdDiscoveryDomain>,<clusterNetworkCIDRs>,<platformSpecific>,<REST_OF_CUSTOM_EXCEPTIONS>"
       EOF
-      systemctl daemon-reload && systemctl restart containerd
+      systemctl daemon-reload && systemctl restart containerd systemd-binfmt.service
 
   # See <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/>
   - mode: system
