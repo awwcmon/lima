@@ -31,7 +31,7 @@ mounts:
   - location: "~"
 mountType: "virtiofs"
 networks:
-  - vzNAT: true
+- vzNAT: true
 provision:
   - mode: system
     script: |
