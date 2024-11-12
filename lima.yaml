@@ -23,7 +23,7 @@ images:
     digest: "sha256:b85d5f5c9e1cbc70cb96f5e5a3f05416555edd7b6c46dba978c71f70eade802b"
 
 cpus: 4
-memory: 6G
+memory: 4G
 containerd:
   system: true
   user: true
