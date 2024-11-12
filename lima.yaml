@@ -30,6 +30,8 @@ containerd:
 mounts:
   - location: "~"
 mountType: "virtiofs"
+networks:
+  - vzNAT: true
 provision:
   - mode: system
     script: |
