@@ -12,17 +12,9 @@
 
 # This template requires Lima v0.7.0 or later.
 images:
-  - location: "./rhel-9.5.qcow2"
-    arch: "aarch64"
-    digest: "sha256:24f35ffb80911f2687f0bcd4237f62e46c19a6f0445aacb951b77d1974130187"
   - location: "https://download.fedoraproject.org/pub/fedora/linux/releases/41/Cloud/aarch64/images/Fedora-Cloud-Base-Generic-41-1.4.aarch64.qcow2"
     arch: "aarch64"
     digest: "sha256:085883b42c7e3b980e366a1fe006cd0ff15877f7e6e984426f3c6c67c7cc2faa"
-  - location: "https://dl.rockylinux.org/pub/rocky/9/images/aarch64/Rocky-9-GenericCloud.latest.aarch64.qcow2"
-    arch: "aarch64"
-  - location: "https://xiaoyueyue.eu.org/redhat.qcow2"
-    arch: "aarch64"
-    digest: "sha256:b85d5f5c9e1cbc70cb96f5e5a3f05416555edd7b6c46dba978c71f70eade802b"
 
 cpus: 4
 memory: 4G
@@ -34,9 +26,9 @@ containerd:
   user: true
 mounts:
   - location: "~"
+  - location: "/opt/local-path-provisioner"
+    writable: true
 mountType: "virtiofs"
-networks:
-- vzNAT: true
 provision:
   - mode: system
     script: |
@@ -81,7 +73,7 @@ provision:
       source /etc/os-release
       if [[ $ID == "fedora" ]];then
       dnf remove -y zram-generator-defaults
-      yum install -y kubelet kubeadm kubectl nfs-utils ipvsadm net-tools vim telnet
+      yum install -y kubelet kubeadm kubectl nfs-utils ipvsadm net-tools vim telnet jq
       else
       yum install -y kubelet kubeadm kubectl nfs-utils ipvsadm net-tools vim telnet --disableexcludes=kubernetes
       fi
@@ -159,6 +151,10 @@ provision:
       || sed -i '/    - --service-cluster-ip-range.*/a\    - --service-node-port-range=3000-32767' \
       /etc/kubernetes/manifests/kube-apiserver.yaml
       systemctl daemon-reload && systemctl restart kubelet containerd
+      # local-path-provisioner
+      REPO="rancher/local-path-provisioner"
+      LATEST_TAG=$(curl -s https://api.github.com/repos/${REPO}/releases/latest | jq -r .tag_name)
+      kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/${LATEST_TAG}/deploy/local-path-storage.yaml
       # Replace the server address with localhost, so that it works also from the host
       sed -e "/server:/ s|https://.*:\([0-9]*\)$|https://127.0.0.1:\1|" -i $KUBECONFIG
       mkdir -p ${HOME:-/root}/.kube && cp -f $KUBECONFIG ${HOME:-/root}/.kube/config
@@ -232,8 +228,8 @@ hostResolver:
   hosts:
     host.docker.internal: host.lima.internal
 portForwards:
-- guestSocket: "/var/run/docker.sock"
-  hostSocket: "{{.Dir}}/sock/docker.sock"
+  - guestSocket: "/var/run/docker.sock"
+    hostSocket: "{{.Dir}}/sock/docker.sock"
 
 message: |
   To run `kubectl` on the host (assumes kubectl is installed), run the following commands:
