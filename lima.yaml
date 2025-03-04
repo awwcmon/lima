@@ -155,6 +155,7 @@ provision:
       REPO="rancher/local-path-provisioner"
       LATEST_TAG=$(curl -s https://api.github.com/repos/${REPO}/releases/latest | jq -r .tag_name)
       kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/${LATEST_TAG}/deploy/local-path-storage.yaml
+      kubectl patch storageclass local-path -p '{"metadata": {"annotations": {"storageclass.kubernetes.io/is-default-class": "true"}}}'
       # Replace the server address with localhost, so that it works also from the host
       sed -e "/server:/ s|https://.*:\([0-9]*\)$|https://127.0.0.1:\1|" -i $KUBECONFIG
       mkdir -p ${HOME:-/root}/.kube && cp -f $KUBECONFIG ${HOME:-/root}/.kube/config
