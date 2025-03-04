@@ -26,9 +26,11 @@ containerd:
   user: true
 mounts:
   - location: "~"
-  - location: "/opt/local-path-provisioner"
+  - location: "/opt/data"
     writable: true
 mountType: "virtiofs"
+networks:
+  - vzNAT: true
 provision:
   - mode: system
     script: |
@@ -105,8 +107,7 @@ provision:
       Environment="HTTP_PROXY=http://192.168.5.2:7890"
       Environment="HTTPS_PROXY=http://192.168.5.2:7890"
       Environment="NO_PROXY=localhost,127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,\
-      .svc,.cluster.local,<nodeCIDR>,<APIServerInternalURL>,<serviceNetworkCIDRs>,\
-      <etcdDiscoveryDomain>,<clusterNetworkCIDRs>,<platformSpecific>,<REST_OF_CUSTOM_EXCEPTIONS>"
+      .svc,.cluster.local"
       EOF
       systemctl daemon-reload && systemctl restart containerd systemd-binfmt.service
 
@@ -151,11 +152,6 @@ provision:
       || sed -i '/    - --service-cluster-ip-range.*/a\    - --service-node-port-range=3000-32767' \
       /etc/kubernetes/manifests/kube-apiserver.yaml
       systemctl daemon-reload && systemctl restart kubelet containerd
-      # local-path-provisioner
-      REPO="rancher/local-path-provisioner"
-      LATEST_TAG=$(curl -s https://api.github.com/repos/${REPO}/releases/latest | jq -r .tag_name)
-      kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/${LATEST_TAG}/deploy/local-path-storage.yaml
-      kubectl patch storageclass local-path -p '{"metadata": {"annotations": {"storageclass.kubernetes.io/is-default-class": "true"}}}'
       # Replace the server address with localhost, so that it works also from the host
       sed -e "/server:/ s|https://.*:\([0-9]*\)$|https://127.0.0.1:\1|" -i $KUBECONFIG
       mkdir -p ${HOME:-/root}/.kube && cp -f $KUBECONFIG ${HOME:-/root}/.kube/config
