@@ -12,16 +12,19 @@
 
 # This template requires Lima v0.7.0 or later.
 images:
-  - location: "./rhel-9.5-aarch64-kvm.qcow2"
+  - location: "./rhel-10.qcow2"
     arch: "aarch64"
-    digest: "sha256:24f35ffb80911f2687f0bcd4237f62e46c19a6f0445aacb951b77d1974130187"
+    digest: "sha256:e26d9746b7eac15aa1257f86de028bc02229c17fc8486108d4512b4849fa5e67"
+  - location: "./rhel-9.5.qcow2"
+    arch: "aarch64"
+    digest: "sha256:54336219357d8aac8a6f954714bb01edd9a681e371e3f63200e76b368b72aea4"
   - location: "https://dl.rockylinux.org/pub/rocky/9/images/aarch64/Rocky-9-GenericCloud-Base.latest.aarch64.qcow2"
   - location: "https://download.fedoraproject.org/pub/fedora/linux/releases/41/Cloud/aarch64/images/Fedora-Cloud-Base-Generic-41-1.4.aarch64.qcow2"
     arch: "aarch64"
     digest: "sha256:085883b42c7e3b980e366a1fe006cd0ff15877f7e6e984426f3c6c67c7cc2faa"
 
-cpus: 2
-memory: 2G
+cpus: 4
+memory: 4G
 rosetta:
   enabled: true
   binfmt: true
