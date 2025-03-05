@@ -12,6 +12,9 @@
 
 # This template requires Lima v0.7.0 or later.
 images:
+  - location: "./rhel-9.5-aarch64-kvm.qcow2"
+    arch: "aarch64"
+    digest: "sha256:24f35ffb80911f2687f0bcd4237f62e46c19a6f0445aacb951b77d1974130187"
   - location: "https://dl.rockylinux.org/pub/rocky/9/images/aarch64/Rocky-9-GenericCloud-Base.latest.aarch64.qcow2"
   - location: "https://download.fedoraproject.org/pub/fedora/linux/releases/41/Cloud/aarch64/images/Fedora-Cloud-Base-Generic-41-1.4.aarch64.qcow2"
     arch: "aarch64"
