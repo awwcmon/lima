@@ -17,8 +17,8 @@ images:
     arch: "aarch64"
     digest: "sha256:085883b42c7e3b980e366a1fe006cd0ff15877f7e6e984426f3c6c67c7cc2faa"
 
-cpus: 4
-memory: 4G
+cpus: 2
+memory: 2G
 rosetta:
   enabled: true
   binfmt: true
