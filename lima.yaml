@@ -177,7 +177,11 @@ provision:
       yum install -y yum-utils
       source /etc/os-release
       [[ $ID == "rocky" ]] && ID="rhel"
+      if [[ $VERSION_ID == "10.0" ]];then
+      yum-config-manager --add-repo https://download.docker.com/linux/9/docker-ce.repo
+      else
       yum-config-manager --add-repo https://download.docker.com/linux/$ID/docker-ce.repo
+      fi
       yum install -y docker-ce
       systemctl enable --now docker
 
