@@ -76,7 +76,7 @@ provision:
       dnf remove -y zram-generator-defaults
       yum install -y kubelet kubeadm kubectl nfs-utils ipvsadm net-tools vim telnet jq
       else
-      yum install -y kubelet kubeadm kubectl nfs-utils ipvsadm net-tools vim telnet --disableexcludes=kubernetes
+      yum install -y kubelet kubeadm kubectl nfs-utils ipvsadm net-tools vim telnet jq --disableexcludes=kubernetes
       fi
       systemctl enable --now kubelet
 
