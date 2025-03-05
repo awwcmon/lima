@@ -71,13 +71,7 @@ provision:
       swapoff -a
       sed -i '/swap/d' /etc/fstab
       dnf update -y
-      source /etc/os-release
-      if [[ $ID == "fedora" ]];then
-      dnf remove -y zram-generator-defaults
-      yum install -y kubelet kubeadm kubectl nfs-utils ipvsadm net-tools vim telnet jq
-      else
-      yum install -y kubelet kubeadm kubectl nfs-utils ipvsadm net-tools vim telnet jq --disableexcludes=kubernetes
-      fi
+      yum install -y yum-utils dnf-plugins-core kubelet kubeadm kubectl nfs-utils ipvsadm net-tools vim telnet jq glibc-langpack-en --disableexcludes=kubernetes
       systemctl enable --now kubelet
 
   # See <https://kubernetes.io/docs/setup/production-environment/container-runtimes/>
@@ -166,14 +160,7 @@ provision:
     script: |
       #!/bin/bash
       command -v dockerd &>/dev/null && exit 0
-      yum install -y yum-utils
-      source /etc/os-release
-      [[ $ID == "rocky" ]] && ID="rhel"
-      if [[ $VERSION_ID == "10.0" ]];then
-      yum-config-manager --add-repo https://download.docker.com/linux/9/docker-ce.repo
-      else
-      yum-config-manager --add-repo https://download.docker.com/linux/$ID/docker-ce.repo
-      fi
+      dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
       yum install -y docker-ce
       systemctl enable --now docker
 
