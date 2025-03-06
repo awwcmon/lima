@@ -1,22 +1,7 @@
-# Deploy kubernetes via kubeadm.
-# $ limactl start ./k8s.yaml
-# $ limactl shell k8s sudo kubectl
-
-# It can be accessed from the host by exporting the kubeconfig file;
-# the ports are already forwarded automatically by lima:
-#
-# $ export KUBECONFIG=$(limactl list k8s --format 'unix://{{.Dir}}/copied-from-guest/kubeconfig.yaml')
-# $ kubectl get no
-# NAME       STATUS   ROLES                  AGE   VERSION
-# lima-k8s   Ready    control-plane,master   44s   v1.22.3
-
-# This template requires Lima v0.7.0 or later.
 images:
-  - location: "https://dl.rockylinux.org/pub/rocky/9/images/aarch64/Rocky-9-GenericCloud-Base.latest.aarch64.qcow2"
-  - location: "https://download.fedoraproject.org/pub/fedora/linux/releases/41/Cloud/aarch64/images/Fedora-Cloud-Base-Generic-41-1.4.aarch64.qcow2"
+  - location: "./rhel-9.5.qcow2"
     arch: "aarch64"
-    digest: "sha256:085883b42c7e3b980e366a1fe006cd0ff15877f7e6e984426f3c6c67c7cc2faa"
-
+    digest: "sha256:54336219357d8aac8a6f954714bb01edd9a681e371e3f63200e76b368b72aea4"
 cpus: 2
 memory: 2G
 rosetta:
@@ -24,20 +9,12 @@ rosetta:
   binfmt: true
 mounts:
   - location: "~"
-  - location: "/opt/data"
-    writable: true
 mountType: "virtiofs"
 provision:
   - mode: system
     script: |
-      #!/bin/bash
-      command -v dockerd &>/dev/null && exit 0
-      yum install -y yum-utils
-      source /etc/os-release
-      [[ $ID == "rocky" ]] && ID="rhel"
-      yum-config-manager --add-repo https://download.docker.com/linux/$ID/docker-ce.repo
-      yum update -y && yum install -y docker-ce
-      systemctl enable --now docker
+      curl -fsSL https://get.docker.com | sh
+      systemctl enable docker --now
 probes:
   - description: "docker daemon to be running"
     script: |
@@ -54,7 +31,6 @@ hostResolver:
 portForwards:
   - guestSocket: "/var/run/docker.sock"
     hostSocket: "{{.Dir}}/sock/docker.sock"
-
 message: |
   To run `docker` on the host (assumes docker-cli is installed), run the following commands:
   ------

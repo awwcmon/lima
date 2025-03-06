@@ -99,8 +99,7 @@ provision:
       [Service]
       Environment="HTTP_PROXY=http://192.168.5.2:7890"
       Environment="HTTPS_PROXY=http://192.168.5.2:7890"
-      Environment="NO_PROXY=localhost,127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,\
-      .svc,.cluster.local"
+      Environment="NO_PROXY=localhost,127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc.cluster.local"
       EOF
       systemctl daemon-reload && systemctl restart containerd systemd-binfmt.service
 
@@ -151,17 +150,8 @@ provision:
   - mode: system
     script: |
       #!/bin/bash
-      set -eux -o pipefail
-      export KUBECONFIG=/etc/kubernetes/admin.conf
-      mkdir -p {{.Home}}/.kube
-      cp -f $KUBECONFIG {{.Home}}/.kube/config
-      chown -R {{.User}} {{.Home}}/.kube
-  - mode: system
-    script: |
-      #!/bin/bash
       command -v dockerd &>/dev/null && exit 0
-      dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-      yum install -y docker-ce
+      curl -fsSL https://get.docker.com | sh
       systemctl enable --now docker
 
 probes:
